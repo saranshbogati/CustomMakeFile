@@ -31,7 +31,7 @@ bool isDirty(TargetRules rule)
     return false;
 };
 
-string findTargetRuleByName(string name, Makefile makefile)
+vector<string> findTargetRuleByName(string name, Makefile makefile)
 {
     for (const TargetRules &target : makefile.targetRules)
     {
@@ -41,19 +41,10 @@ string findTargetRuleByName(string name, Makefile makefile)
             {
                 continue;
             }
-            string command = "";
-            for (const string &cmd : target.commands)
-            {
-                command += cmd + ';';
-            }
-            if (!command.empty() && command.back() == ';')
-            {
-                command.pop_back();
-            }
-            return command;
+            return target.commands;
         };
     }
-    return "";
+    return {};
 }
 
 string findCommandPath(const string &command)
@@ -221,16 +212,19 @@ int main(int argc, char *argv[])
         for (const string &name : buildOrder)
         {
             // cout << "build name: " << name << endl;
-            string command = findTargetRuleByName(name, myMakefile);
-            if (!command.empty())
+            vector<string> commands = findTargetRuleByName(name, myMakefile);
+            if (commands.size() > 0)
             {
-                int result = system(command.c_str());
-
-                // Check the result of the command execution
-                if (result != 0)
+                for (string &command : commands)
                 {
-                    // cerr << "Error: Command execution failed for target " << name << endl;
-                    // Handle the error as needed
+                    int result = system(command.c_str());
+
+                    // Check the result of the command execution
+                    if (result != 0)
+                    {
+                        // cerr << "Error: Command execution failed for target " << name << endl;
+                        // Handle the error as needed
+                    }
                 }
             }
             else
@@ -252,16 +246,23 @@ int main(int argc, char *argv[])
         vector<string> buildOrder = topologicalSort(dependencyGraph, myMakefile.targetRules);
         for (const string &name : buildOrder)
         {
-            string command = findTargetRuleByName(name, myMakefile);
-            if (!command.empty())
+            if (name == "clean")
             {
-                int result = runCommand(command);
-
-                // Check the result of the command execution
-                if (result != 0)
+                continue;
+            }
+            vector<string> commands = findTargetRuleByName(name, myMakefile);
+            if (commands.size() > 0)
+            {
+                for (string &command : commands)
                 {
-                    // cerr << "Error: Command execution failed for target " << name << endl;
-                    // Handle the error as needed
+                    int result = system(command.c_str());
+
+                    // Check the result of the commansd execution
+                    if (result != 0)
+                    {
+                        // cerr << "Error: Command execution failed for target " << name << endl;
+                        // Handle the error as needed
+                    }
                 }
             }
             else

@@ -10,7 +10,7 @@ gula.o: gula.cpp
     ${CC} ${CFLAGS} -c $< -o $@
 
 geda.o: geda.cpp
-    ls -l
+    @echo "Mero cha"
     ${CC} ${CFLAGS} -c $< -o $@
 
 test.o: test.cpp

@@ -180,32 +180,35 @@ void parseMakeFile(const string &filename, Makefile &makefile)
 
     file.close();
 }
-
-string replace_variables(const string &str, const vector<Macro> &macros, const string &target, const vector<string> &prerequisites, const string &source)
+string replaceVariables(const string &str, const vector<Macro> &macros, const string &target, const vector<string> &prerequisites)
 {
     string result = str;
+    string source = prerequisites.empty() ? "" : prerequisites[0]; // Check if prerequisites is empty
+
+    cout << "Original command: " << str << endl;
 
     // Replace ${var} format
     for (const auto &macro : macros)
     {
         string var_name = macro.name;
         regex pat("\\$\\{" + var_name + "\\}");
+        cout << "Replacing {" << var_name << "} with " << macro.value_str << endl;
         result = regex_replace(result, pat, macro.value_str);
-    }
-    for (const auto &macro : macros)
-    {
-        string var_name = macro.name;
-        regex pat("\\$" + var_name);
-        result = regex_replace(result, pat, macro.value_str);
+        regex newPat("\\$" + var_name);
+        result = regex_replace(result, newPat, macro.value_str);
     }
 
-    if (str.find('$') == string::npos)
+    if (result.find('$') == string::npos)
     {
-        return str; // No replacements needed
+        return result; // No replacements needed
     }
+
     // Replace $< with source file
-    regex input_pat("\\$<");
-    result = regex_replace(result, input_pat, source);
+    if (!source.empty())
+    {
+        regex input_pat("\\$<");
+        result = regex_replace(result, input_pat, source);
+    }
 
     // Replace $@ with target file
     regex output_pat("\\$@");
@@ -220,7 +223,10 @@ string replace_variables(const string &str, const vector<Macro> &macros, const s
     }
     result = regex_replace(result, all_prerequisites_pat, all_prerequisites);
 
+    cout << "Replaced command: " << result << endl; // Print the replaced command
+
     // Add more replacements as needed...
+    cout << "Final result: " << result << endl;
 
     return result;
 }

@@ -16,7 +16,7 @@ geda.o: geda.cpp
 test.o: test.cpp
     ${CC} ${CFLAGS} -c $< -o $@
 clean:
-    rm *.o gulegede main
-# Inference Rule
+    rm -f gulegede main geda.o gula.o test.o
+# Inference Rule 
 %.o: %.cpp
     ${CC} ${CFLAGS} -c $< -o $@

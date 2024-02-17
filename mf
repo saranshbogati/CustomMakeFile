@@ -1,0 +1,6 @@
+CC = g++
+CFLAGS = -Wall -std=c++20 -pedantic
+gula.o: gula.cpp
+    ${CC} ${CFLAGS} -c $< -o $@
+clean:
+    rm -f gula.o main

@@ -1,8 +1,11 @@
+#ifndef DEPENDENCY_CPP
+#define DEPENDENCY_CPP
 
 #include <vector>
 #include <unordered_map>
 #include <stack>
 #include <string>
+#include "classes.cpp"
 
 using namespace std;
 
@@ -71,3 +74,15 @@ vector<string> topologicalSort(const map<string, vector<string>> &graph, const v
 
     return sorted;
 }
+
+map<string, vector<string>> buildDependencyGraph(Makefile &myMakefile)
+{
+    map<string, vector<string>> dependencyGraph;
+    for (const TargetRules &rule : myMakefile.targetRules)
+    {
+        dependencyGraph[rule.name] = rule.prerequisites;
+    }
+    return dependencyGraph;
+}
+
+#endif // DEPENDENCY_CPP

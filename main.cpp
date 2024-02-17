@@ -1,276 +1,176 @@
+#ifndef MAIN_CPP
+#define MAIN_CPP
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <unordered_map>
 #include <regex>
-#include "classes.cpp"
-#include "parser.cpp"
-#include "dependency.cpp"
 #include <chrono>
 #include <filesystem>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <csignal>
+#include <cstdlib>
+
+// Local files
+#include "dependency.cpp"
+#include "classes.cpp"
+#include "parser.cpp"
+#include "util.cpp"
+#include "run.cpp"
 
 using namespace std;
-// namespace fs = filesystem;
+
+// Global Variable declaration
 unordered_map<string, filesystem::file_time_type> timestamps;
 vector<string> currentFiles;
+vector<pid_t> childProcesses;
+volatile sig_atomic_t timeoutOccurred = 0;
+bool isDebug = false;
+bool isCustomMakefile = false;
+char *timeValue;
+bool printOnly = false;
+bool continueExecution = false;
+bool blockSignal = false;
+int timeout = 0;
 
-bool isDirty(TargetRules rule)
+// functions for handling signals
+void handleSIGINT(int signum)
 {
-    filesystem::file_time_type sourceTimestamp = timestamps[rule.name];
-    for (string &r : rule.prerequisites)
+    cout << "SIGINT received." << endl;
+    if (blockSignal == true)
     {
-        filesystem::file_time_type prerequisiteTimeStamp = timestamps[r];
-        if (prerequisiteTimeStamp > sourceTimestamp)
-        {
-            return true;
-        }
-    }
-    return false;
-};
-
-vector<string> findTargetRuleByName(string name, Makefile makefile)
-{
-    for (const TargetRules &target : makefile.targetRules)
-    {
-        if (target.name == name)
-        {
-            if (isDirty(target) == false)
-            {
-                continue;
-            }
-            return target.commands;
-        };
-    }
-    return {};
-}
-
-string findCommandPath(const string &command)
-{
-    string whichCommand = "which " + command;
-    FILE *pipe = popen(whichCommand.c_str(), "r");
-    if (!pipe)
-    {
-        perror("popen");
-        exit(EXIT_FAILURE);
-    }
-
-    char buffer[128];
-    string result = "";
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
-    {
-        result += buffer;
-    }
-
-    if (pclose(pipe) == -1)
-    {
-        perror("pclose");
-        exit(EXIT_FAILURE);
-    }
-
-    // Remove trailing newline characters
-    result.erase(result.find_last_not_of("\n") + 1);
-
-    return result;
-}
-
-int runCommand(const std::string &command)
-{
-    std::cout << "Command to run: " << command << std::endl;
-
-    pid_t pid = fork();
-
-    if (pid == -1)
-    {
-        perror("fork");
-        return -1;
-    }
-    else if (pid > 0)
-    {
-        // Parent process
-        int status;
-        waitpid(pid, &status, 0);
-        cout << "Exiting from the parent process. Waiting for the child process" << endl;
-        // Return the exit status of the child process
-        return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+        cout << "Program is running with -i flag. Continuing..." << endl;
     }
     else
     {
-        // First child process
-        pid_t childPid = fork();
-
-        if (childPid == -1)
-        {
-            perror("fork");
-            exit(EXIT_FAILURE);
-        }
-        else if (childPid > 0)
-        {
-            // Exit the first child process
-            exit(EXIT_SUCCESS);
-        }
-        else
-        {
-            // Second child process
-            // Split the command into arguments
-            std::vector<char *> args;
-            char *token = strtok(const_cast<char *>(command.c_str()), " ");
-            while (token != nullptr)
-            {
-                args.push_back(token);
-                token = strtok(nullptr, " ");
-            }
-            args.push_back(nullptr); // Null-terminate the array
-            cout << "Executing from the child process" << endl;
-            // Execute the command in the second child process
-            string executablePath = findCommandPath(args[0]);
-            cout << "Executable path is " << executablePath << endl;
-            const char *firstArg = executablePath.c_str();
-            execv(firstArg, args.data());
-            perror("execv");
-            exit(EXIT_FAILURE);
-        }
+        exit(EXIT_FAILURE);
     }
 }
-
-filesystem::file_time_type getLastModifiedTime(const string &filename)
+void handleSIGALRM(int signum)
 {
-    return filesystem::last_write_time(filename);
-}
-
-void populateAllCurrentFiles()
-{
-    string path = "./";
-    for (auto &e : filesystem::directory_iterator(path))
-    {
-        currentFiles.push_back(e.path().string());
-    }
+    cout << "Timeout reached. Cleaning up and exiting." << endl;
+    timeoutOccurred = 1;
+    cleanUp(childProcesses, false, isDebug);
+    signal(SIGALRM, SIG_DFL);
 }
 
 int main(int argc, char *argv[])
 {
-    populateAllCurrentFiles();
+    int opt;
+    const char *optstring = "f:t:ikpd";
+    const char *makefileValue = "makefile";
+    // cout << "Sleeping ...." << endl;
+
+    while ((opt = getopt(argc, argv, optstring)) != -1)
+    {
+        handleCommandArgs(optarg, opt, makefileValue, isCustomMakefile, timeValue, timeout, printOnly, blockSignal, continueExecution);
+    }
+
+    // Set up signal handlers
+    if (blockSignal)
+    {
+        signal(SIGINT, handleSIGINT);
+    }
+
+    // Set up timeout handler
+    if (timeout > 0)
+    {
+        alarm(timeout);
+        signal(SIGALRM, handleSIGALRM);
+    }
+    // sleep(200);
+
+    // Populate timestamps for all current files
+    populateAllCurrentFiles(currentFiles);
     for (const string &f : currentFiles)
     {
         filesystem::path filePath(f);
         string fileName = filePath.filename();
         timestamps[fileName] = getLastModifiedTime(f);
     }
+
+    // Load makefile (custom path if desired)
     Makefile myMakefile;
-    parseMakeFile("makefile", myMakefile);
+    parseMakeFile(makefileValue, myMakefile);
+
     // Replace variables in commands
-    for (auto &targetRule : myMakefile.targetRules)
+    for (TargetRules &rule : myMakefile.targetRules)
     {
-        for (auto &command : targetRule.commands)
+        for (auto &command : rule.commands)
         {
-            command = replace_variables(command, myMakefile.macros, targetRule.name, targetRule.prerequisites, targetRule.prerequisites[0]);
+            cout << "command" << command << endl;
+            command = replaceVariables(command, myMakefile.macros, rule.name, rule.prerequisites);
         }
     }
 
+    // Build dependency graph
+    map<string, vector<string>> dependencyGraph = buildDependencyGraph(myMakefile);
+
+    // Print makefile if requested
+    if (printOnly)
+    {
+        return printMakefile(myMakefile);
+    }
+
+    // Handle specific targets or build all
+    vector<string> targets;
     if (argc > 1)
     {
-        if (strcmp(argv[1], "clean") == 0)
-        {
-            // find the clean command and execute only the clean command
-            // cout << "Executing only the clean command" << endl;
-            for (auto &t : myMakefile.targetRules)
-            {
-                string name = t.name;
-                if (name == "clean")
-                {
-                    runCommand(t.commands[0]);
-                    return 0;
-                }
-            }
-        }
-        // cout << "Argc is greater than one" << endl;
-        vector<string> targets(argv + 1, argv + argc);
-        for (auto &c : targets)
-        {
-            cout << "Target: " << c << endl;
-        };
-
-        map<string, vector<string>> dependencyGraph;
-        for (const TargetRules &rule : myMakefile.targetRules)
-        {
-            dependencyGraph[rule.name] = rule.prerequisites;
-        }
-
-        // Check if the specified targets exist in the dependency graph
-        for (const string &target : targets)
-        {
-            if (dependencyGraph.find(target) == dependencyGraph.end())
-            {
-                cerr << "Error: Target " << target << " not found in the makefile." << endl;
-                return 1; // Return an error code
-            }
-        }
-
-        vector<string> buildOrder = topologicalSort(dependencyGraph, myMakefile.targetRules, targets);
-        for (const string &name : buildOrder)
-        {
-            // cout << "build name: " << name << endl;
-            vector<string> commands = findTargetRuleByName(name, myMakefile);
-            if (commands.size() > 0)
-            {
-                for (string &command : commands)
-                {
-                    int result = system(command.c_str());
-
-                    // Check the result of the command execution
-                    if (result != 0)
-                    {
-                        // cerr << "Error: Command execution failed for target " << name << endl;
-                        // Handle the error as needed
-                    }
-                }
-            }
-            else
-            {
-                // cout << "Thukka muji. No need to execute this command";
-                continue;
-            }
-        }
+        targets.assign(argv + optind, argv + argc);
     }
-    else
+
+    // Check if targets exist
+    for (const string &target : targets)
     {
-        // If no arguments provided, build all targets
-        map<string, vector<string>> dependencyGraph;
-        for (const TargetRules &rule : myMakefile.targetRules)
+        if (dependencyGraph.find(target) == dependencyGraph.end())
         {
-            dependencyGraph[rule.name] = rule.prerequisites;
+            cerr << "Error: Target '" << target << "' not found in the makefile." << endl;
+            return 1;
+        }
+    }
+
+    // Perform topological sort
+    vector<string> buildOrder = topologicalSort(dependencyGraph, myMakefile.targetRules, targets);
+
+    // Execute commands for each target in build order
+    for (const string &name : buildOrder)
+    {
+        if (name == "clean")
+        {
+            continue; // Handle "clean" command separately
         }
 
-        vector<string> buildOrder = topologicalSort(dependencyGraph, myMakefile.targetRules);
-        for (const string &name : buildOrder)
+        vector<string> commands = findTargetRuleByName(name, myMakefile, timestamps);
+        if (commands.empty())
         {
-            if (name == "clean")
-            {
-                continue;
-            }
-            vector<string> commands = findTargetRuleByName(name, myMakefile);
-            if (commands.size() > 0)
-            {
-                for (string &command : commands)
-                {
-                    int result = system(command.c_str());
+            continue; // Skip targets without commands
+        }
 
-                    // Check the result of the commansd execution
-                    if (result != 0)
-                    {
-                        // cerr << "Error: Command execution failed for target " << name << endl;
-                        // Handle the error as needed
-                    }
-                }
-            }
-            else
+        for (string &command : commands)
+        {
+            // sleep(100); // Simulate work (replace with actual processing)
+            int result = runCommand(command, childProcesses, continueExecution);
+
+            // Handle command execution errors
+            if (result != 0)
             {
-                // cout << "No need to run command since its not dirty. Thukka muji " << endl;
+                // ... (optional error handling)
             }
         }
     }
+
+    // Handle "clean" command if present
+    if (find(targets.begin(), targets.end(), "clean") != targets.end())
+    {
+        handleCleanCommand(myMakefile, continueExecution, childProcesses);
+    }
+
+    // Cleanup on timeout or program completion
+    // cleanUp(childProcesses, true, isDebug);
 
     return 0;
 }
+#endif // MAIN_CPP

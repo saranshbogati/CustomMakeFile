@@ -38,32 +38,6 @@ vector<string> getCommandVector(const vector<string> &commands)
     return result;
 }
 
-string findPath(const string &command)
-{
-    const char *path = getenv("PATH");
-    if (!path)
-    {
-        cerr << "Error: PATH environment variable not set." << endl;
-        return nullptr;
-    }
-
-    stringstream ss(path);
-    string dir;
-    while (getline(ss, dir, ':'))
-    {
-        filesystem::path commandPath = filesystem::path(dir) / command;
-
-        if (filesystem::exists(commandPath) && filesystem::is_regular_file(commandPath))
-        {
-            cout << "Found command '" << command << "' at: " << commandPath << endl;
-            return commandPath.string();
-        }
-    }
-
-    cerr << "Error: Command '" << command << "' not found in PATH." << endl;
-    return nullptr;
-}
-
 filesystem::file_time_type getLastModifiedTime(const string &filename)
 {
     return filesystem::last_write_time(filename);
@@ -71,7 +45,11 @@ filesystem::file_time_type getLastModifiedTime(const string &filename)
 
 bool isDirty(TargetRules rule, unordered_map<string, filesystem::file_time_type> &timestamps)
 {
-    return true;
+    // return true;
+    if (rule.name == "clean")
+    {
+        return false;
+    }
     filesystem::file_time_type sourceTimestamp = timestamps[rule.name];
     for (string &r : rule.prerequisites)
     {
@@ -83,6 +61,18 @@ bool isDirty(TargetRules rule, unordered_map<string, filesystem::file_time_type>
     }
     return false;
 };
+
+TargetRules getTargetRule(string name, vector<TargetRules> rules)
+{
+    for (const TargetRules &rule : rules)
+    {
+        if (name == rule.name)
+        {
+            return rule;
+        }
+    }
+    return TargetRules();
+}
 
 vector<string> findTargetRuleByName(string name, Makefile makefile, unordered_map<string, filesystem::file_time_type> &timestamps)
 {
@@ -155,7 +145,10 @@ void cleanUp(vector<pid_t> &childProcesses, bool isSuccess = false, bool isDebug
     }
 }
 
-void handleCommandArgs(char *optarg, int opt, const char *&makefileValue, bool &isCustomMakefile, char *&timeValue, int &timeout, bool &printOnly, bool &blockSignal, bool &continueExecution)
+void handleCommandArgs(int argc, char *argv[],
+                       char *optarg, int opt, const char *&makefileValue,
+                       bool &isCustomMakefile, char *&timeValue, int &timeout,
+                       bool &printOnly, bool &blockSignal, bool &isDebug, bool &continueExecution, vector<string> &targetList)
 {
     switch (opt)
     {
@@ -177,7 +170,7 @@ void handleCommandArgs(char *optarg, int opt, const char *&makefileValue, bool &
         break;
     case 'd':
         cout << "Option '-d' detected" << endl;
-        // showDebug = true;
+        isDebug = true;
         break;
     case 'i':
         cout << "Option '-i' detected" << endl;
@@ -187,11 +180,10 @@ void handleCommandArgs(char *optarg, int opt, const char *&makefileValue, bool &
         cout << "Option '-k' detected" << endl;
         continueExecution = true;
         break;
-    case '?':
-        cerr << "Unknown option or missing argument." << endl;
-        break;
+
     default:
-        cerr << "Default case." << endl;
+        // cerr << "Default case." << endl;
+
         break;
     }
 }

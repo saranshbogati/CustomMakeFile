@@ -12,11 +12,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <csignal>
+#include <set>
 #include <cstdlib>
 
 // Local files
 #include "dependency.cpp"
-#include "classes.cpp"
+#include "classes.h"
 #include "parser.cpp"
 #include "util.cpp"
 #include "run.cpp"
@@ -62,28 +63,39 @@ int main(int argc, char *argv[])
     int opt;
     const char *optstring = "f:t:ikpd";
     const char *makefileValue = "makefile";
-    // cout << "Sleeping ...." << endl;
+    vector<string> targetList;
 
     while ((opt = getopt(argc, argv, optstring)) != -1)
     {
-        handleCommandArgs(optarg, opt, makefileValue, isCustomMakefile, timeValue, timeout, printOnly, blockSignal, continueExecution);
+        handleCommandArgs(argc, argv, optarg, opt, makefileValue, isCustomMakefile,
+                          timeValue, timeout, printOnly, blockSignal, isDebug, continueExecution, targetList);
+    }
+    if (optind < argc)
+    {
+        // optind is the index of the first non-option argument
+        string targetString(argv[optind]);
+        targetList.push_back(targetString);
+        optind++;
     }
 
     // Set up signal handlers
     if (blockSignal)
     {
+        DEBUG_COMMENT("Setting up singal handler", isDebug);
         signal(SIGINT, handleSIGINT);
     }
 
     // Set up timeout handler
     if (timeout > 0)
     {
+        DEBUG_COMMENT("Setting timeout " + to_string(timeout), isDebug);
         alarm(timeout);
         signal(SIGALRM, handleSIGALRM);
     }
     // sleep(200);
 
     // Populate timestamps for all current files
+    DEBUG_COMMENT("Populating timestamps for files in the current directory", isDebug);
     populateAllCurrentFiles(currentFiles);
     for (const string &f : currentFiles)
     {
@@ -95,81 +107,76 @@ int main(int argc, char *argv[])
     // Load makefile (custom path if desired)
     Makefile myMakefile;
     parseMakeFile(makefileValue, myMakefile);
+    DEBUG_COMMENT("Parsed makefile", isDebug);
 
+    if (printOnly)
+    {
+        DEBUG_COMMENT("Print only so only printing makefile");
+        return printMakefile(myMakefile);
+    }
+
+    DEBUG_COMMENT("Replacing macros for commands in the target rule", isDebug);
     // Replace variables in commands
     for (TargetRules &rule : myMakefile.targetRules)
     {
         for (auto &command : rule.commands)
         {
-            cout << "command" << command << endl;
+            // cout << "command" << command << endl;
             command = replaceVariables(command, myMakefile.macros, rule.name, rule.prerequisites);
         }
     }
-
-    // Build dependency graph
-    map<string, vector<string>> dependencyGraph = buildDependencyGraph(myMakefile);
-
-    // Print makefile if requested
-    if (printOnly)
+    vector<string> visited;
+    if (targetList.size() > 0)
     {
-        return printMakefile(myMakefile);
-    }
-
-    // Handle specific targets or build all
-    vector<string> targets;
-    if (argc > 1)
-    {
-        targets.assign(argv + optind, argv + argc);
-    }
-
-    // Check if targets exist
-    for (const string &target : targets)
-    {
-        if (dependencyGraph.find(target) == dependencyGraph.end())
+        DEBUG_COMMENT("Building specific targets", isDebug);
+        for (string t : targetList)
         {
-            cerr << "Error: Target '" << target << "' not found in the makefile." << endl;
-            return 1;
-        }
-    }
-
-    // Perform topological sort
-    vector<string> buildOrder = topologicalSort(dependencyGraph, myMakefile.targetRules, targets);
-
-    // Execute commands for each target in build order
-    for (const string &name : buildOrder)
-    {
-        if (name == "clean")
-        {
-            continue; // Handle "clean" command separately
-        }
-
-        vector<string> commands = findTargetRuleByName(name, myMakefile, timestamps);
-        if (commands.empty())
-        {
-            continue; // Skip targets without commands
-        }
-
-        for (string &command : commands)
-        {
-            // sleep(100); // Simulate work (replace with actual processing)
-            int result = runCommand(command, childProcesses, continueExecution);
-
-            // Handle command execution errors
-            if (result != 0)
+            DEBUG_COMMENT("Building target:" + t, isDebug);
+            DEBUG_COMMENT("Checking if target is dirty", isDebug);
+            TargetRules rule = getTargetRule(t, myMakefile.targetRules);
+            if (rule.name.empty())
             {
-                // ... (optional error handling)
+                DEBUG_COMMENT("Rule not found. Error ", isDebug);
+                return -1;
             }
+            if (isDirty(rule, timestamps))
+            {
+                DEBUG_COMMENT("No need to build target. Nothing changed from last time", isDebug);
+                continue;
+            }
+            handleTargetRulesDep(myMakefile, t, visited, childProcesses, continueExecution, isDebug);
+        }
+        return 0;
+    }
+    DEBUG_COMMENT("Building and executing inference rules", isDebug);
+    handleInferenceRulesFile(myMakefile, childProcesses, continueExecution, isDebug);
+    DEBUG_COMMENT("Building and executing all target rules", isDebug);
+    for (const auto &targetRule : myMakefile.targetRules)
+    {
+        string currentTarget = targetRule.name;
+        if (currentTarget == "clean")
+        {
+            DEBUG_COMMENT("Skipping clean build", isDebug);
+            continue;
+        }
+        DEBUG_COMMENT("Building target:" + targetRule.name, isDebug);
+        DEBUG_COMMENT("Checking if target is dirty", isDebug);
+        if (targetRule.name.empty())
+        {
+            DEBUG_COMMENT("Rule not found. Error ", isDebug);
+            return -1;
+        }
+        if (isDirty(targetRule, timestamps) == false)
+        {
+            DEBUG_COMMENT("No need to build target. Nothing changed from last time", isDebug);
+            continue;
+        }
+        else
+        {
+            DEBUG_COMMENT("Target is not dirty. Continuing to build..", isDebug);
+            handleTargetRulesDep(myMakefile, currentTarget, visited, childProcesses, continueExecution, isDebug);
         }
     }
-
-    // Handle "clean" command if present
-    if (find(targets.begin(), targets.end(), "clean") != targets.end())
-    {
-        handleCleanCommand(myMakefile, continueExecution, childProcesses);
-    }
-
-    // Cleanup on timeout or program completion
-    // cleanUp(childProcesses, true, isDebug);
 
     return 0;
 }

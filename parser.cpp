@@ -25,7 +25,6 @@ vector<string> splitAndTrim(const string &input)
               back_inserter(result),
               [](const string &s)
               {
-                  // Trim leading and trailing whitespace
                   string token = s;
                   token.erase(token.begin(), find_if(token.begin(), token.end(), [](unsigned char ch)
                                                      { return !isspace(ch); }));
@@ -45,7 +44,6 @@ string trimWhitespace(const string &input)
 
     if (start == string::npos || end == string::npos)
     {
-        // The string is either empty or contains only whitespaces
         return "";
     }
 
@@ -54,7 +52,6 @@ string trimWhitespace(const string &input)
 
 void handleMacros(const string &line, Makefile &makefile)
 {
-    // Split the line into macro name and value
     size_t pos = line.find('=');
     if (pos == string::npos || pos == 0 || pos == line.size() - 1)
     {
@@ -64,11 +61,9 @@ void handleMacros(const string &line, Makefile &makefile)
     string name = line.substr(0, pos);
     string value = line.substr(pos + 1);
 
-    // Trim whitespace from both name and value
     name = trimWhitespace(name);
     value = trimWhitespace(value);
 
-    // Create and store the macro
     Macro macro;
     macro.name = name;
     macro.value_str = value;
@@ -119,13 +114,7 @@ InferenceRule handleInferenceRules(const string &line, Makefile &makefile)
         inferenceRule.target = targetAndSource.substr(0, pos);
         inferenceRule.source = targetAndSource.substr(pos + 1);
     }
-    // else
-    // {
-    //     handleError("Invalid format for inference rule: " + line);
-    //     return;
-    // }
 
-    // Extract and store commands
     while (iss >> token)
     {
         inferenceRule.commands.push_back(token);
@@ -179,7 +168,6 @@ void parseMakeFile(const string &filename, Makefile &makefile)
             currentInferenceRule = InferenceRule();
             if ((processingTargetRule || processingInferenceRule))
             {
-                // Only toggle the flags if no rule has been processed yet
                 processingTargetRule = !processingTargetRule;
                 processingInferenceRule = !processingInferenceRule;
             }
@@ -191,7 +179,6 @@ void parseMakeFile(const string &filename, Makefile &makefile)
             currentInferenceRule = InferenceRule();
             if (processingTargetRule || processingInferenceRule)
             {
-                // Only toggle the flags if no rule has been processed yet
                 processingTargetRule = !processingTargetRule;
                 processingInferenceRule = !processingInferenceRule;
             }
@@ -204,7 +191,6 @@ void parseMakeFile(const string &filename, Makefile &makefile)
             currentTargetRule.commands.push_back(command);
             makefile.targetRules.pop_back();
             makefile.targetRules.push_back(currentTargetRule);
-            // currentTargetRule = TargetRules();
         }
         else if (processingInferenceRule)
         {
@@ -215,7 +201,6 @@ void parseMakeFile(const string &filename, Makefile &makefile)
         }
         else
         {
-            // daksdjaskjfd
         }
     }
 
@@ -224,45 +209,35 @@ void parseMakeFile(const string &filename, Makefile &makefile)
 string replaceVariables(const string &str, const vector<Macro> &macros, const string &target, const vector<string> &prerequisites)
 {
     string result = str;
-    string source = prerequisites.empty() ? "" : prerequisites[0]; // Check if prerequisites is empty
+    string source = prerequisites.empty() ? "" : prerequisites[0];
 
-    // cout << "Original command: " << str << endl;
-
-    // Replace ${var} format
     for (const auto &macro : macros)
     {
         string var_name = macro.name;
 
         regex pat("\\$\\{" + var_name + "\\}");
-        // cout << "Replacing {" << var_name << "} with " << macro.value_str << endl;
         result = regex_replace(result, pat, macro.value_str);
 
         regex pat1("\\$\\(" + var_name + "\\)");
-        // cout << "Replacing (" << var_name << ") with " << macro.value_str << endl;
         result = regex_replace(result, pat1, macro.value_str);
 
         regex newPat("\\$" + var_name);
-        // cout << "Replacing $" << var_name << " with " << macro.value_str << endl;
         result = regex_replace(result, newPat, macro.value_str);
     }
 
     if (result.find('$') == string::npos)
     {
-        return result; // No replacements needed
+        return result;
     }
-
-    // Replace $< with source file
     if (!source.empty())
     {
         regex input_pat("\\$<");
         result = regex_replace(result, input_pat, source);
     }
 
-    // Replace $@ with target file
     regex output_pat("\\$@");
     result = regex_replace(result, output_pat, target);
 
-    // Replace $^ with space-separated prerequisites
     regex all_prerequisites_pat("\\$\\^");
     string all_prerequisites;
     for (const auto &prereq : prerequisites)
@@ -270,12 +245,6 @@ string replaceVariables(const string &str, const vector<Macro> &macros, const st
         all_prerequisites += prereq + " ";
     }
     result = regex_replace(result, all_prerequisites_pat, all_prerequisites);
-
-    // cout << "Replaced command: " << result << endl; // Print the replaced command
-
-    // Add more replacements as needed...
-    // cout << "Final result: " << result << endl;
-
     return result;
 }
 
@@ -288,7 +257,6 @@ string replaceMacroVars(const string &input, vector<Macro> macros)
         regex pattern(pat);
         result = regex_replace(result, pattern, macro.value_str);
     }
-    // cout<<"Marco: "<<result<<endl;
     return result;
 }
 
@@ -303,7 +271,6 @@ void handleInferenceRulesFile(Makefile makefile, vector<int> childProcesses, boo
             auto target = inferenceRule.target;
             cout << "INF RULE: " << inferenceRule.target << endl;
 
-            // Split the inferenec rule into source and target extension
             smatch match;
             regex_match(inferenceRule.target, match, inferenceRegex);
             string source_ext = match[1];
@@ -312,12 +279,10 @@ void handleInferenceRulesFile(Makefile makefile, vector<int> childProcesses, boo
             {
                 target_ext = match[2];
             }
-            // Get all the files with the given extension
             for (const auto &entry : filesystem::directory_iterator(filesystem::current_path()))
             {
                 if (entry.is_regular_file() && entry.path().extension() == source_ext)
                 {
-                    // std::cout << filesystem::relative(entry.path(), filesystem::current_path()) << std::endl;
                     string source_file_stem = relative(entry.path().stem(), filesystem::current_path());
                     string source_file = source_file_stem + source_ext;
                     string target_file = source_file_stem + target_ext;

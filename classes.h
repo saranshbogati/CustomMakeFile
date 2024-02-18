@@ -54,17 +54,14 @@ public:
 
     void addTarget(const string &target, const vector<string> &prerequisites)
     {
-        // Extract base name and extension
         string baseName = target.substr(0, target.rfind('.'));
         string extension = target.substr(target.rfind('.') + 1);
 
-        // Use unique identifier for each combination
         string uniqueTarget = baseName + "_" + extension;
 
         dependencies[uniqueTarget] = prerequisites;
         for (const auto &prerequisite : prerequisites)
         {
-            // Update graph with unique identifiers
             graph[uniqueTarget].push_back(prerequisite);
         }
     }

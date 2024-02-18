@@ -24,7 +24,6 @@ vector<string> getCommandVector(const vector<string> &commands)
 
         while (getline(iss, singleCommand, ';'))
         {
-            // Trim leading and trailing whitespaces
             singleCommand.erase(singleCommand.find_last_not_of(" \t\n\r\f\v") + 1);
             singleCommand.erase(0, singleCommand.find_first_not_of(" \t\n\r\f\v"));
 
@@ -45,12 +44,13 @@ filesystem::file_time_type getLastModifiedTime(const string &filename)
 
 bool isDirty(TargetRules rule, unordered_map<string, filesystem::file_time_type> &timestamps)
 {
-    // return true;
     if (rule.name == "clean")
     {
         return false;
     }
+
     filesystem::file_time_type sourceTimestamp = timestamps[rule.name];
+
     for (string &r : rule.prerequisites)
     {
         filesystem::file_time_type prerequisiteTimeStamp = timestamps[r];
@@ -58,6 +58,10 @@ bool isDirty(TargetRules rule, unordered_map<string, filesystem::file_time_type>
         {
             return true;
         }
+    }
+    if (rule.prerequisites.size() == 0)
+    {
+        return true;
     }
     return false;
 };
@@ -112,22 +116,16 @@ void cleanUp(vector<pid_t> &childProcesses, bool isSuccess = false, bool isDebug
 {
     if (childProcesses.size() > 0)
     {
-        // kill all the child processes
         for (pid_t child : childProcesses)
         {
             if (child > 0)
             {
-                // string childId = to_string(child);
-                // printDebugMsg("Killing process", isDebug);
-
-                // Attempt to terminate the child process
                 if (kill(child, SIGTERM) == 0)
                 {
                     printDebugMsg("Process terminated successfully.", isDebug);
                 }
                 else
                 {
-                    // Handle the error if kill fails
                     perror("kill");
                     printDebugMsg("Error terminating process.", isDebug);
                 }
@@ -159,7 +157,6 @@ void handleCommandArgs(int argc, char *argv[],
         break;
     case 't':
         timeValue = optarg;
-        // isCustomTimestamp = true;
         cout << "Option '-t' detected with argument: " << timeValue << endl;
         timeout = atoi(optarg);
         cout << "Timeout set to " << timeout << " seconds." << endl;
@@ -182,8 +179,6 @@ void handleCommandArgs(int argc, char *argv[],
         break;
 
     default:
-        // cerr << "Default case." << endl;
-
         break;
     }
 }

@@ -37,7 +37,6 @@ bool continueExecution = false;
 bool blockSignal = false;
 int timeout = 0;
 
-// functions for handling signals
 void handleSIGINT(int signum)
 {
     cout << "SIGINT received." << endl;
@@ -72,29 +71,24 @@ int main(int argc, char *argv[])
     }
     if (optind < argc)
     {
-        // optind is the index of the first non-option argument
         string targetString(argv[optind]);
         targetList.push_back(targetString);
         optind++;
     }
 
-    // Set up signal handlers
     if (blockSignal)
     {
         DEBUG_COMMENT("Setting up singal handler", isDebug);
         signal(SIGINT, handleSIGINT);
     }
 
-    // Set up timeout handler
     if (timeout > 0)
     {
         DEBUG_COMMENT("Setting timeout " + to_string(timeout), isDebug);
         alarm(timeout);
         signal(SIGALRM, handleSIGALRM);
     }
-    // sleep(200);
 
-    // Populate timestamps for all current files
     DEBUG_COMMENT("Populating timestamps for files in the current directory", isDebug);
     populateAllCurrentFiles(currentFiles);
     for (const string &f : currentFiles)
@@ -104,7 +98,6 @@ int main(int argc, char *argv[])
         timestamps[fileName] = getLastModifiedTime(f);
     }
 
-    // Load makefile (custom path if desired)
     Makefile myMakefile;
     parseMakeFile(makefileValue, myMakefile);
     DEBUG_COMMENT("Parsed makefile", isDebug);
@@ -116,12 +109,10 @@ int main(int argc, char *argv[])
     }
 
     DEBUG_COMMENT("Replacing macros for commands in the target rule", isDebug);
-    // Replace variables in commands
     for (TargetRules &rule : myMakefile.targetRules)
     {
         for (auto &command : rule.commands)
         {
-            // cout << "command" << command << endl;
             command = replaceVariables(command, myMakefile.macros, rule.name, rule.prerequisites);
         }
     }

@@ -93,13 +93,13 @@ int main(int argc, char *argv[])
 
     for (int i = 1; i < argc; ++i)
     {
-        std::string arg = argv[i];
+        string arg = argv[i];
 
         if (!arg.empty() && arg[0] == '-')
         {
             if (arg == "-f" || arg == "-t")
             {
-                std::string value = argv[i + 1];
+                string value = argv[i + 1];
                 handleCommandArgs(arg, value, makefileValue, isCustomMakefile,
                                   timeValue, timeout, printOnly, blockSignal,
                                   isDebug, continueExecution, targetList);
@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
             }
             else
             {
-                handleCommandArgs(arg, "", makefileValue, isCustomMakefile,
+                string value = "";
+                handleCommandArgs(arg, value, makefileValue, isCustomMakefile,
                                   timeValue, timeout, printOnly, blockSignal,
                                   isDebug, continueExecution, targetList);
             }
@@ -183,7 +184,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     DEBUG_COMMENT("Building and executing inference rules", isDebug);
-    handleInferenceRulesFile(myMakefile, childProcesses, continueExecution, isDebug);
+    // handleInferenceRulesFile(myMakefile, childProcesses, continueExecution, isDebug);
     DEBUG_COMMENT("Building and executing all target rules", isDebug);
     for (const auto &targetRule : myMakefile.targetRules)
     {

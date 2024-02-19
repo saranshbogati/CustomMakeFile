@@ -142,41 +142,43 @@ void cleanUp(vector<pid_t> &childProcesses, bool isSuccess = false, bool isDebug
         exit(EXIT_SUCCESS);
     }
 }
-void handleCommandArgs(const std::string &option, const std::string &value, const std::string &makefileValue,
+
+void handleCommandArgs(const string &option, string &value, string &makefileValue,
                        bool &isCustomMakefile, int &timeValue, int &timeout,
                        bool &printOnly, bool &blockSignal, bool &isDebug,
-                       bool &continueExecution, std::vector<std::string> &targetList)
+                       bool &continueExecution, vector<string> &targetList)
 {
     if (option == "-f")
     {
         isCustomMakefile = true;
-        std::cout << "Option '-f' detected with argument: " << makefileValue << std::endl;
+        cout << "Option '-f' detected with argument: " << value << endl;
+        makefileValue = value;
     }
     else if (option == "-t")
     {
-        timeValue = std::stoi(value);
-        std::cout << "Option '-t' detected with argument: " << timeValue << std::endl;
+        timeValue = stoi(value);
+        cout << "Option '-t' detected with argument: " << timeValue << endl;
         timeout = timeValue;
-        std::cout << "Timeout set to " << timeout << " seconds." << std::endl;
+        cout << "Timeout set to " << timeout << " seconds." << endl;
     }
     else if (option == "-p")
     {
-        std::cout << "Option '-p' detected" << std::endl;
+        cout << "Option '-p' detected" << endl;
         printOnly = true;
     }
     else if (option == "-d")
     {
-        std::cout << "Option '-d' detected" << std::endl;
+        cout << "Option '-d' detected" << endl;
         isDebug = true;
     }
     else if (option == "-i")
     {
-        std::cout << "Option '-i' detected" << std::endl;
+        cout << "Option '-i' detected" << endl;
         blockSignal = true;
     }
     else if (option == "-k")
     {
-        std::cout << "Option '-k' detected" << std::endl;
+        cout << "Option '-k' detected" << endl;
         continueExecution = true;
     }
 }

@@ -1,2 +1,2 @@
 a:
-    ls | grep .cpp | wc
+        pwd

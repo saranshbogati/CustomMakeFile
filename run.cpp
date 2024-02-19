@@ -177,7 +177,7 @@ int run(const string &command, string &output, bool isDebug)
                 res.append(buffer, bytesRead);
             }
             close(pipefd[0]);
-            DEBUG_COMMENT("Buffer: " + res, isDebug);
+            cout << "Output: " << res << endl;
             DEBUG_COMMENT("Child finished executing", isDebug);
             output = res;
         }

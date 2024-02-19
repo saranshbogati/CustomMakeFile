@@ -15,11 +15,9 @@ clean:
 	/bin/rm -f a.out
 	/bin/rm -f myprog1.o myprog2.o myprog3.o
 	/bin/rm -f myprog1.c~ myprog2.c~ myprog3.c~ myprog.h~
-demo: a.out
-	./a.out
+
 test: 
-	/bin/sleep 2
-	/bin/sleep 2	
+	/bin/sleep 20000
 test0:
 	/usr/bin/who
 	/bin/ls

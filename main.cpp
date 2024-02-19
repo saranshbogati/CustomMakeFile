@@ -31,7 +31,7 @@ vector<pid_t> childProcesses;
 volatile sig_atomic_t timeoutOccurred = 0;
 bool isDebug = false;
 bool isCustomMakefile = false;
-char *timeValue;
+int timeValue;
 bool printOnly = false;
 bool continueExecution = false;
 bool blockSignal = false;
@@ -57,23 +57,67 @@ void handleSIGALRM(int signum)
     signal(SIGALRM, SIG_DFL);
 }
 
+int handleNestedBuild(Makefile &myMakefile, string &t, vector<string> &visited)
+{
+    for (const auto &targetRule : myMakefile.targetRules)
+    {
+        if (find(targetRule.prerequisites.begin(), targetRule.prerequisites.end(), t) != targetRule.prerequisites.end())
+        {
+            string dependentTarget = targetRule.name;
+            DEBUG_COMMENT("Building target with prerequisite: " + dependentTarget, isDebug);
+
+            // Check if the dependent target is dirty
+            TargetRules dependentRule = getTargetRule(dependentTarget, myMakefile.targetRules);
+            if (dependentRule.name.empty())
+            {
+                DEBUG_COMMENT("Dependent rule not found. Error ", isDebug);
+                return -1;
+            }
+            if (isDirty(dependentRule, timestamps))
+            {
+                DEBUG_COMMENT("No need to build dependent target. Nothing changed from last time", isDebug);
+                continue;
+            }
+
+            // Build the dependent target
+            handleTargetRulesDep(myMakefile, dependentTarget, visited, childProcesses, continueExecution, isDebug);
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     int opt;
     const char *optstring = "f:t:ikpd";
-    const char *makefileValue = "makefile";
+    string makefileValue = "makefile";
     vector<string> targetList;
 
-    while ((opt = getopt(argc, argv, optstring)) != -1)
+    for (int i = 1; i < argc; ++i)
     {
-        handleCommandArgs(argc, argv, optarg, opt, makefileValue, isCustomMakefile,
-                          timeValue, timeout, printOnly, blockSignal, isDebug, continueExecution, targetList);
-    }
-    if (optind < argc)
-    {
-        string targetString(argv[optind]);
-        targetList.push_back(targetString);
-        optind++;
+        std::string arg = argv[i];
+
+        if (!arg.empty() && arg[0] == '-')
+        {
+            if (arg == "-f" || arg == "-t")
+            {
+                std::string value = argv[i + 1];
+                handleCommandArgs(arg, value, makefileValue, isCustomMakefile,
+                                  timeValue, timeout, printOnly, blockSignal,
+                                  isDebug, continueExecution, targetList);
+                ++i;
+            }
+            else
+            {
+                handleCommandArgs(arg, "", makefileValue, isCustomMakefile,
+                                  timeValue, timeout, printOnly, blockSignal,
+                                  isDebug, continueExecution, targetList);
+            }
+        }
+        else
+        {
+            targetList.push_back(arg);
+        }
     }
 
     if (blockSignal)
@@ -136,6 +180,7 @@ int main(int argc, char *argv[])
                 continue;
             }
             handleTargetRulesDep(myMakefile, t, visited, childProcesses, continueExecution, isDebug);
+            handleNestedBuild(myMakefile, t, visited);
         }
         return 0;
     }

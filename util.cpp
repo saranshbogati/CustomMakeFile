@@ -142,44 +142,42 @@ void cleanUp(vector<pid_t> &childProcesses, bool isSuccess = false, bool isDebug
         exit(EXIT_SUCCESS);
     }
 }
-
-void handleCommandArgs(int argc, char *argv[],
-                       char *optarg, int opt, const char *&makefileValue,
-                       bool &isCustomMakefile, char *&timeValue, int &timeout,
-                       bool &printOnly, bool &blockSignal, bool &isDebug, bool &continueExecution, vector<string> &targetList)
+void handleCommandArgs(const std::string &option, const std::string &value, const std::string &makefileValue,
+                       bool &isCustomMakefile, int &timeValue, int &timeout,
+                       bool &printOnly, bool &blockSignal, bool &isDebug,
+                       bool &continueExecution, std::vector<std::string> &targetList)
 {
-    switch (opt)
+    if (option == "-f")
     {
-    case 'f':
-        makefileValue = optarg;
         isCustomMakefile = true;
-        cout << "Option '-f' detected with argument: " << makefileValue << endl;
-        break;
-    case 't':
-        timeValue = optarg;
-        cout << "Option '-t' detected with argument: " << timeValue << endl;
-        timeout = atoi(optarg);
-        cout << "Timeout set to " << timeout << " seconds." << endl;
-        break;
-    case 'p':
-        cout << "Option '-p' detected" << endl;
+        std::cout << "Option '-f' detected with argument: " << makefileValue << std::endl;
+    }
+    else if (option == "-t")
+    {
+        timeValue = std::stoi(value);
+        std::cout << "Option '-t' detected with argument: " << timeValue << std::endl;
+        timeout = timeValue;
+        std::cout << "Timeout set to " << timeout << " seconds." << std::endl;
+    }
+    else if (option == "-p")
+    {
+        std::cout << "Option '-p' detected" << std::endl;
         printOnly = true;
-        break;
-    case 'd':
-        cout << "Option '-d' detected" << endl;
+    }
+    else if (option == "-d")
+    {
+        std::cout << "Option '-d' detected" << std::endl;
         isDebug = true;
-        break;
-    case 'i':
-        cout << "Option '-i' detected" << endl;
+    }
+    else if (option == "-i")
+    {
+        std::cout << "Option '-i' detected" << std::endl;
         blockSignal = true;
-        break;
-    case 'k':
-        cout << "Option '-k' detected" << endl;
+    }
+    else if (option == "-k")
+    {
+        std::cout << "Option '-k' detected" << std::endl;
         continueExecution = true;
-        break;
-
-    default:
-        break;
     }
 }
 

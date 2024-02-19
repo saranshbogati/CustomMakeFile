@@ -88,8 +88,6 @@ int handleNestedBuild(Makefile &myMakefile, string &t, vector<string> &visited)
 
 int main(int argc, char *argv[])
 {
-    int opt;
-    const char *optstring = "f:t:ikpd";
     string makefileValue = "makefile";
     vector<string> targetList;
 

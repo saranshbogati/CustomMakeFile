@@ -294,7 +294,7 @@ void handleInferenceRulesFile(Makefile makefile, vector<int> childProcesses, boo
                             string command;
                             command = replaceVariables(cmd, makefile.macros, target_file, {source_file});
                             string output = "";
-                            run(command, output, isDebug);
+                            run(command, output, isDebug, continueExecution);
                         }
                     }
                 }

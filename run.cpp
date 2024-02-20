@@ -63,7 +63,8 @@ vector<string> split(const string &command, const char &delimiter)
     return tokens;
 }
 
-int executePipedCommand(const string &command, string &output, int (&prevPipe)[2], int (&nextPipe)[2], int counter, int totalCommands, bool isDebug)
+int executePipedCommand(const string &command, string &output, int (&prevPipe)[2],
+                        int (&nextPipe)[2], int counter, int totalCommands, bool isDebug, bool continueExecution)
 {
     vector<string> commandTok = split(command, ' ');
     vector<const char *> c_args;
@@ -103,7 +104,10 @@ int executePipedCommand(const string &command, string &output, int (&prevPipe)[2
             }
             execv(firstArg, const_cast<char *const *>(c_args.data()));
             DEBUG_COMMENT("Failed to execute command: ", isDebug);
-            return -1;
+            if (continueExecution == false)
+            {
+                exit(-1);
+            }
         }
         else
         {
@@ -126,12 +130,15 @@ int executePipedCommand(const string &command, string &output, int (&prevPipe)[2
     else
     {
         DEBUG_COMMENT("Executable not found !!", isDebug);
-        return -1;
+        if (continueExecution == false)
+        {
+            exit(-1);
+        }
     }
     return 0;
 }
 
-int run(const string &command, string &output, bool isDebug)
+int run(const string &command, string &output, bool isDebug, bool continueExecution)
 {
     DEBUG_COMMENT("Splitting command: " + command, isDebug);
     vector<string> tokens = split(command, ' ');
@@ -163,7 +170,11 @@ int run(const string &command, string &output, bool isDebug)
             close(pipefd[1]);
             execv(firstArg, const_cast<char *const *>(c_args.data()));
             DEBUG_COMMENT("Failed to execute command: ", isDebug);
-            return -1;
+            if (continueExecution == false)
+            {
+                exit(-1);
+            }
+            return 0;
         }
         else
         {
@@ -191,52 +202,44 @@ int run(const string &command, string &output, bool isDebug)
     return 0;
 }
 
-int handleCommandMultiple(const string &command, bool isDebug)
+int handleCommandMultiple(const string &command, bool isDebug, bool continueExecution)
 {
     string output;
     DEBUG_COMMENT("Command : " + command, isDebug);
 
     if (command.find(';') != string::npos)
     {
-        handleSemicolonCommand(isDebug, command, output);
+        handleSemicolonCommand(isDebug, command, output, continueExecution);
     }
     else if (command.find('|') != string::npos)
     {
-        handlePipedCommand(isDebug, command, output);
-    }
-    else if (command.find('<') != string::npos)
-    {
-        DEBUG_COMMENT("Commands separated by <", isDebug);
-    }
-    else if (command.find('>') != string::npos)
-    {
-        DEBUG_COMMENT("Commands separated by >", isDebug);
+        handlePipedCommand(isDebug, command, output, continueExecution);
     }
     else
     {
-        handleNormalCommand(isDebug, command, output);
+        handleNormalCommand(isDebug, command, output, continueExecution);
     }
 
     return 0;
 }
 
-void handleNormalCommand(bool isDebug, const std::__1::string &command, std::__1::string &output)
+void handleNormalCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution)
 {
     DEBUG_COMMENT("Normal command", isDebug);
-    int res = run(command, output, isDebug);
+    int res = run(command, output, isDebug, continueExecution);
     if (res != 0)
     {
         DEBUG_COMMENT("Error in executing command", isDebug);
     }
 }
 
-void handleSemicolonCommand(bool isDebug, const std::__1::string &command, std::__1::string &output)
+void handleSemicolonCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution)
 {
     DEBUG_COMMENT("Semicolon found in command", isDebug);
     vector<string> commands = split(command, ';');
     for (const string &cmd : commands)
     {
-        int res = run(cmd, output, isDebug);
+        int res = run(cmd, output, isDebug, continueExecution);
         if (res != 0)
         {
             DEBUG_COMMENT("Error in executing command", isDebug);
@@ -244,7 +247,7 @@ void handleSemicolonCommand(bool isDebug, const std::__1::string &command, std::
     }
 }
 
-void handlePipedCommand(bool isDebug, const std::__1::string &command, std::__1::string &output)
+void handlePipedCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution)
 {
     DEBUG_COMMENT("Pipe command", isDebug);
 
@@ -259,7 +262,7 @@ void handlePipedCommand(bool isDebug, const std::__1::string &command, std::__1:
         DEBUG_COMMENT("Command to run: " + currentCommand, isDebug);
 
         int executionResult = executePipedCommand(currentCommand, output, prevPipeDescriptor,
-                                                  nextPipeDescriptor, commandCounter++, totalCommands, isDebug);
+                                                  nextPipeDescriptor, commandCounter++, totalCommands, isDebug, continueExecution);
 
         if (executionResult != 0)
         {

@@ -179,12 +179,12 @@ int main(int argc, char *argv[])
                 continue;
             }
             handleTargetRulesDep(myMakefile, t, visited, childProcesses, continueExecution, isDebug);
-            handleNestedBuild(myMakefile, t, visited);
+            // handleNestedBuild(myMakefile, t, visited);
         }
         return 0;
     }
     DEBUG_COMMENT("Building and executing inference rules", isDebug);
-    // handleInferenceRulesFile(myMakefile, childProcesses, continueExecution, isDebug);
+    handleInferenceRulesFile(myMakefile, childProcesses, continueExecution, isDebug);
     DEBUG_COMMENT("Building and executing all target rules", isDebug);
     for (const auto &targetRule : myMakefile.targetRules)
     {

@@ -1,0 +1,7 @@
+# test circular dependencies
+test4: test5
+	/bin/ls
+test5: test6
+	/usr/bin/who
+test6: test4
+	/usr/bin/whoami

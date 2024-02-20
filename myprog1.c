@@ -5,6 +5,8 @@
 int main()
 { 
   int i;
-  printf("main step sssss dd.\n");
+  step1();
+  step2();
+  printf("main step sssss dd aa ss dddd.\n");
   return 0;
 }

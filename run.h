@@ -1,6 +1,6 @@
 #pragma once
-void handlePipedCommand(bool isDebug, const std::__1::string &command, std::__1::string &output);
+void handlePipedCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution);
 
-void handleSemicolonCommand(bool isDebug, const std::__1::string &command, std::__1::string &output);
+void handleSemicolonCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution);
 
-void handleNormalCommand(bool isDebug, const std::__1::string &command, std::__1::string &output);
+void handleNormalCommand(bool isDebug, const __1::string &command, __1::string &output, bool continueExecution);

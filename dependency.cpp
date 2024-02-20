@@ -27,6 +27,7 @@ bool find(vector<string> vec, string toCheck)
     }
     return false;
 }
+
 void handleTargetRulesDep(Makefile &makefile,
                           string &currentTarget, vector<string> &visited,
                           vector<int> childProcesses, bool continueExecution, bool isDebug)
@@ -73,7 +74,7 @@ void handleTargetRulesDep(Makefile &makefile,
         for (string cmd : rule.commands)
         {
             DEBUG_COMMENT("Executing command: " + cmd, isDebug);
-            handleCommandMultiple(cmd, isDebug);
+            handleCommandMultiple(cmd, isDebug, continueExecution);
         }
     }
 }

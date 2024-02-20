@@ -1,4 +1,5 @@
+# makefile to test -i flag
 all:
-	pwd
-	cd test
-	ls
+	/bin/sleep 2000
+	/bin/sleep 2000
+	/bin/sleep 2000
